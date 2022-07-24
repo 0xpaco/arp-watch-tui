@@ -4,6 +4,8 @@ pub mod sniff;
 pub mod structs;
 pub mod ui;
 
+use structs::net::Device;
+
 use crate::structs::arp::ArpPacket;
 use crate::structs::statelist::StateList;
 
@@ -20,12 +22,13 @@ pub enum Popup {
 
 pub struct App {
     // TODO: Change string for a made struct
-    pub list: StateList<String>,
+    pub list: StateList<Device>,
     pub rx: Receiver<ArpPacket>,
     scroll: usize,
     pub mode: InputMode,
     pub popup: Popup,
     pub input: String,
+    pub arp_frame_counter: usize,
 }
 
 impl App {
@@ -39,6 +42,7 @@ impl App {
                 mode: InputMode::NormalMode,
                 popup: Popup::None,
                 input: String::new(),
+                arp_frame_counter: 0,
             },
             tx,
         )

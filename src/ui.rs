@@ -15,7 +15,13 @@ use tui::{
     Frame, Terminal,
 };
 
-use crate::App;
+use crate::{
+    structs::{
+        arp::ARPOperation,
+        net::{Device, MacAddr},
+    },
+    App,
+};
 
 pub fn start_ui(app: App) -> Result<(), Box<dyn Error>> {
     enable_raw_mode()?;
@@ -41,12 +47,22 @@ pub fn start_ui(app: App) -> Result<(), Box<dyn Error>> {
 
 fn run_app<B: Backend>(term: &mut Terminal<B>, mut app: App) -> Result<(), Box<dyn Error>> {
     loop {
-        // if let Ok(packet) = app.rx.try_recv() {
-        //     let (snd_dev, _) = packet.devices();
-        //     if !app.list.items.contains(snd_dev) {
-        //         app.list.items.push(snd_dev.clone());
-        //     }
-        // }
+        if let Ok(packet) = app.rx.try_recv() {
+            // let sender = Device {
+            //     mac: packet.sender_mac,
+            //     ip: packet.sender_ip,
+            // };
+            let target = Device {
+                mac: packet.target_mac,
+                ip: packet.target_ip,
+            };
+
+            let broadcast_mac = MacAddr::new(&[00, 00, 00, 00, 00, 00]).unwrap();
+            if target.mac != broadcast_mac && !app.list.has_same_mac(&target) {
+                app.list.items.push(target);
+            }
+            app.arp_frame_counter += 1;
+        }
 
         term.draw(|f| ui(f, &mut app))?;
         if poll(Duration::from_millis(100)).unwrap() {
@@ -78,12 +94,12 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded),
         );
-    f.render_widget(header(), chunks[0]);
+    f.render_widget(header(app.arp_frame_counter), chunks[0]);
     f.render_stateful_widget(list, chunks[1], &mut app.list.state);
 }
 
-fn header() -> Paragraph<'static> {
-    Paragraph::new(Text::raw("ARP Watch"))
+fn header(frame_count: usize) -> Paragraph<'static> {
+    Paragraph::new(Text::raw(format!("ARP Watch (Frame: {})", frame_count)))
         .alignment(Alignment::Center)
         .block(
             Block::default()

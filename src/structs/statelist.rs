@@ -1,8 +1,21 @@
 use tui::widgets::ListState;
 
+use super::net::Device;
+
 pub struct StateList<T> {
     pub items: Vec<T>,
     pub state: ListState,
+}
+
+impl StateList<Device> {
+    pub fn has_same_mac(&self, searched: &Device) -> bool {
+        for device in self.items.iter() {
+            if device.mac == searched.mac {
+                return true;
+            }
+        }
+        return false;
+    }
 }
 
 impl<T> StateList<T> {

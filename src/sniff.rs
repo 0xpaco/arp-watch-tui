@@ -1,7 +1,7 @@
-use log::{error, info, debug};
+use log::{debug, error, info};
 use pnet_datalink::Channel::Ethernet;
 use pnet_datalink::NetworkInterface;
-use std::sync::mpsc::Sender;
+use std::{error::Error, fs::File, io::Read, sync::mpsc::Sender};
 
 use crate::structs::{
     arp::{ARPOperation, ArpPacket, HardwareType, ProtocolType},
@@ -16,7 +16,7 @@ use crate::structs::{
 // ];
 
 // TODO Get router self and router mac addr then save save in a "session"
-pub fn sniff(interface_name: &str, _app_tx: Sender<ArpPacket>) {
+pub fn sniff(interface_name: &str, app_tx: Sender<ArpPacket>) {
     let interface_name_match = |iface: &NetworkInterface| iface.name == interface_name;
 
     let interfaces = pnet_datalink::interfaces();
@@ -36,6 +36,7 @@ pub fn sniff(interface_name: &str, _app_tx: Sender<ArpPacket>) {
     };
 
     // tx.send_to(&CUSTOM_PACKET, None);
+    let local_mac = local_mac().unwrap();
     for i in 0u8..254u8 {
         let arp_packet = ArpPacket {
             hardware_type: HardwareType::Ether,
@@ -43,12 +44,12 @@ pub fn sniff(interface_name: &str, _app_tx: Sender<ArpPacket>) {
             hardware_len: 6,
             proto_len: 4,
             operation: ARPOperation::Request,
-            sender_mac: MacAddr::new(&[08, 00, 39, 122, 146, 101]).unwrap(),
+            sender_mac: local_mac.clone(),
             sender_ip: IpAddr::new(&[192, 168, 1, 86]).unwrap(),
             target_mac: MacAddr::new(&[00, 00, 00, 00, 00, 00]).unwrap(),
             target_ip: IpAddr::new(&[192, 168, 1, i]).unwrap(),
         };
-        debug!("Sending packet to {:?}", &[192, 168, 1, i]);
+        // debug!("Sending packet to {:?}", &[192, 168, 1, i]);
         tx.send_to(arp_packet.raw().as_slice(), None);
     }
 
@@ -64,10 +65,28 @@ pub fn sniff(interface_name: &str, _app_tx: Sender<ArpPacket>) {
                 if packet[12..14] != [08, 06] {
                     continue;
                 }
-                let packet = ArpPacket::from(&packet[14..]);
-                info!("{:?}", packet);
+
+                if let Ok(packet) = ArpPacket::from(&packet[14..]) {
+                    app_tx.send(packet).unwrap();
+                }
+                // info!("{:?}", packet);
             }
             Err(e) => error!("Error occurred while catching packets {}", e),
         }
     }
+}
+
+// todo add variable for iface name
+pub fn local_mac() -> Result<MacAddr, Box<dyn Error>> {
+    // For security reason we will not inject var into the path for the moment
+    let mut f = File::open("/sys/class/net/wlan0/address")?;
+    let mut content: Vec<u8> = vec![];
+    f.read_to_end(&mut content)?;
+    let content = String::from_utf8(content)?;
+    let numbers: Vec<u8> = (0..content.len())
+        .step_by(3)
+        .map(|i| u8::from_str_radix(&content[i..i + 1], 16).unwrap())
+        .collect();
+    let ret = MacAddr::new(numbers.as_slice())?;
+    Ok(ret)
 }

@@ -1,27 +1,9 @@
 use std::{error::Error, fmt::Display};
 
-#[derive(Copy, Clone, PartialEq, Eq)]
-pub enum ArpOperation {
-    Request,
-    Reply,
-}
-
-pub struct ArpPacket {
-    pub sender: Device,
-    pub target: Device,
-    pub op: ArpOperation,
-}
-
-impl ArpPacket {
-    pub fn devices(&self) -> (&Device, &Device) {
-        (&self.sender, &self.target)
-    }
-}
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct Device {
-    mac: MacAddr,
-    ip: IpAddr,
+    pub mac: MacAddr,
+    pub ip: IpAddr,
 }
 
 impl Device {
@@ -30,6 +12,10 @@ impl Device {
         let mac = MacAddr::new(mac)?;
         let ip = IpAddr::new(ip)?;
         Ok(Device { mac, ip })
+    }
+
+    pub fn mac(&self) -> &MacAddr {
+        &self.mac
     }
 }
 
