@@ -23,6 +23,7 @@ pub enum Popup {
 pub struct App {
     // TODO: Change string for a made struct
     pub list: StateList<Device>,
+    pub changement_list: StateList<(Device, Device)>,
     pub rx: Receiver<ArpPacket>,
     scroll: usize,
     pub mode: InputMode,
@@ -37,6 +38,7 @@ impl App {
         (
             App {
                 list: StateList::new(),
+                changement_list: StateList::new(),
                 rx,
                 scroll: 0,
                 mode: InputMode::NormalMode,

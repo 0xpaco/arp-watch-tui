@@ -1,6 +1,6 @@
 use tui::widgets::ListState;
 
-use super::net::Device;
+use super::net::{Device, MacAddr};
 
 pub struct StateList<T> {
     pub items: Vec<T>,
@@ -14,7 +14,16 @@ impl StateList<Device> {
                 return true;
             }
         }
-        return false;
+        false
+    }
+
+    pub fn get(&self, searched: &MacAddr) -> Option<&Device> {
+        for dev in self.items.iter() {
+            if dev.mac == *searched {
+                return Some(&dev);
+            }
+        }
+        None
     }
 }
 

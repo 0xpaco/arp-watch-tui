@@ -47,18 +47,24 @@ fn run_app<B: Backend>(term: &mut Terminal<B>, mut app: App) -> Result<(), Box<d
     let local_mac = local_mac()?;
     loop {
         if let Ok(packet) = app.rx.try_recv() {
-            // let sender = Device {
-            //     mac: packet.sender_mac,
-            //     ip: packet.sender_ip,
-            // };
             let target = Device {
                 mac: packet.target_mac,
                 ip: packet.target_ip,
             };
 
             let broadcast_mac = MacAddr::new(&[00, 00, 00, 00, 00, 00]).unwrap();
-            if target.mac != broadcast_mac && !app.list.has_same_mac(&target) {
-                app.list.items.push(target);
+            if app.list.has_same_mac(&target) {
+                if let Some(already_existing) = app.list.get(&target.mac) {
+                    if already_existing.ip != target.ip {
+                        app.changement_list
+                            .items
+                            .push((already_existing.clone(), target));
+                    }
+                }
+            } else {
+                if target.mac != broadcast_mac {
+                    app.list.items.push(target);
+                }
             }
             app.arp_frame_counter += 1;
         }
@@ -78,23 +84,45 @@ fn run_app<B: Backend>(term: &mut Terminal<B>, mut app: App) -> Result<(), Box<d
 fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, mac: MacAddr) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(20), Constraint::Percentage(80)].as_ref())
+        .constraints(
+            [
+                Constraint::Percentage(20),
+                Constraint::Percentage(40),
+                Constraint::Percentage(40),
+            ]
+            .as_ref(),
+        )
         .split(f.size());
-    let items = app
-        .list
-        .items
+    f.render_widget(header(app.arp_frame_counter, mac), chunks[0]);
+    f.render_stateful_widget(
+        render_list(app.list.items.clone(), |item| item.to_string()),
+        chunks[1],
+        &mut app.list.state,
+    );
+    f.render_stateful_widget(
+        render_list(app.changement_list.items.clone(), |item| {
+            format!("{} -> {}", item.0, item.1)
+        }),
+        chunks[2],
+        &mut app.changement_list.state,
+    );
+}
+
+fn render_list<T, F>(list: Vec<T>, f: F) -> List<'static>
+where
+    F: Fn(&T) -> String,
+{
+    let items = list
         .iter()
-        .map(|dev| ListItem::new(Span::raw(format!("{}", dev))))
+        .map(|item| ListItem::new(Span::raw(f(item))))
         .collect::<Vec<ListItem>>();
-    let list = List::new(items)
+    List::new(items)
         .highlight_style(Style::default().fg(Color::Black).bg(Color::White))
         .block(
             Block::default()
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded),
-        );
-    f.render_widget(header(app.arp_frame_counter, mac), chunks[0]);
-    f.render_stateful_widget(list, chunks[1], &mut app.list.state);
+        )
 }
 
 fn header(frame_count: usize, mac: MacAddr) -> Paragraph<'static> {

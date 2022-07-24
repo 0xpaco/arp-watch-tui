@@ -19,9 +19,47 @@ impl Device {
     }
 }
 
+impl Display for Device {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{}] @ {}", self.mac, self.ip)
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct MacAddr {
     pub field: Vec<u8>,
+}
+
+impl MacAddr {
+    pub fn new(field: &[u8]) -> Result<MacAddr, AddressParseError> {
+        if field.len() != 6 {
+            return Err(AddressParseError);
+        }
+        Ok(MacAddr {
+            field: field.to_owned(),
+        })
+    }
+}
+
+impl Into<Vec<u8>> for MacAddr {
+    fn into(self) -> Vec<u8> {
+        self.field.clone()
+    }
+}
+
+impl Display for MacAddr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:0>2X}::{:0>2X}::{:0>2X}::{:0>2X}::{:0>2X}::{:0>2X}",
+            self.field[0],
+            self.field[1],
+            self.field[2],
+            self.field[3],
+            self.field[4],
+            self.field[5]
+        )
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -40,55 +78,9 @@ impl IpAddr {
     }
 }
 
-impl MacAddr {
-    pub fn new(field: &[u8]) -> Result<MacAddr, AddressParseError> {
-        if field.len() != 6 {
-            return Err(AddressParseError);
-        }
-        Ok(MacAddr {
-            field: field.to_owned(),
-        })
-    }
-}
-
-impl Into<Vec<u8>> for MacAddr {
-    fn into(self) -> Vec<u8> {
-        let mut vec = vec![];
-        for byte in self.field {
-            vec.push(byte);
-        }
-        vec
-    }
-}
-
 impl Into<Vec<u8>> for IpAddr {
     fn into(self) -> Vec<u8> {
-        let mut vec = vec![];
-        for byte in self.field {
-            vec.push(byte);
-        }
-        vec
-    }
-}
-
-impl Display for Device {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}] @ {}", self.mac, self.ip)
-    }
-}
-
-impl Display for MacAddr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{:0>2X}::{:0>2X}::{:0>2X}::{:0>2X}::{:0>2X}::{:0>2X}",
-            self.field[0],
-            self.field[1],
-            self.field[2],
-            self.field[3],
-            self.field[4],
-            self.field[5]
-        )
+        self.field.clone()
     }
 }
 
