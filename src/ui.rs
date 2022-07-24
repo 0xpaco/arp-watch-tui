@@ -16,10 +16,8 @@ use tui::{
 };
 
 use crate::{
-    structs::{
-        arp::ARPOperation,
-        net::{Device, MacAddr},
-    },
+    sniff::local_mac,
+    structs::net::{Device, MacAddr},
     App,
 };
 
@@ -46,6 +44,7 @@ pub fn start_ui(app: App) -> Result<(), Box<dyn Error>> {
 }
 
 fn run_app<B: Backend>(term: &mut Terminal<B>, mut app: App) -> Result<(), Box<dyn Error>> {
+    let local_mac = local_mac()?;
     loop {
         if let Ok(packet) = app.rx.try_recv() {
             // let sender = Device {
@@ -64,7 +63,7 @@ fn run_app<B: Backend>(term: &mut Terminal<B>, mut app: App) -> Result<(), Box<d
             app.arp_frame_counter += 1;
         }
 
-        term.draw(|f| ui(f, &mut app))?;
+        term.draw(|f| ui(f, &mut app, local_mac.clone()))?;
         if poll(Duration::from_millis(100)).unwrap() {
             if let Event::Key(key) = event::read()? {
                 match key.code {
@@ -76,7 +75,7 @@ fn run_app<B: Backend>(term: &mut Terminal<B>, mut app: App) -> Result<(), Box<d
     }
 }
 
-fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
+fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, mac: MacAddr) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(20), Constraint::Percentage(80)].as_ref())
@@ -94,16 +93,19 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded),
         );
-    f.render_widget(header(app.arp_frame_counter), chunks[0]);
+    f.render_widget(header(app.arp_frame_counter, mac), chunks[0]);
     f.render_stateful_widget(list, chunks[1], &mut app.list.state);
 }
 
-fn header(frame_count: usize) -> Paragraph<'static> {
-    Paragraph::new(Text::raw(format!("ARP Watch (Frame: {})", frame_count)))
-        .alignment(Alignment::Center)
-        .block(
-            Block::default()
-                .borders(Borders::all())
-                .border_type(tui::widgets::BorderType::Double),
-        )
+fn header(frame_count: usize, mac: MacAddr) -> Paragraph<'static> {
+    Paragraph::new(Text::raw(format!(
+        "ARP Watch [{}] (Frame: {})",
+        mac, frame_count
+    )))
+    .alignment(Alignment::Center)
+    .block(
+        Block::default()
+            .borders(Borders::all())
+            .border_type(tui::widgets::BorderType::Double),
+    )
 }

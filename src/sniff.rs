@@ -1,4 +1,4 @@
-use log::{debug, error, info};
+use log::error;
 use pnet_datalink::Channel::Ethernet;
 use pnet_datalink::NetworkInterface;
 use std::{error::Error, fs::File, io::Read, sync::mpsc::Sender};
@@ -79,14 +79,14 @@ pub fn sniff(interface_name: &str, app_tx: Sender<ArpPacket>) {
 // todo add variable for iface name
 pub fn local_mac() -> Result<MacAddr, Box<dyn Error>> {
     // For security reason we will not inject var into the path for the moment
-    let mut f = File::open("/sys/class/net/wlan0/address")?;
-    let mut content: Vec<u8> = vec![];
-    f.read_to_end(&mut content)?;
-    let content = String::from_utf8(content)?;
-    let numbers: Vec<u8> = (0..content.len())
-        .step_by(3)
-        .map(|i| u8::from_str_radix(&content[i..i + 1], 16).unwrap())
+    let mut f = File::open("/sys/class/net/enp0s3/address").unwrap();
+    let mut content = String::new();
+    f.read_to_string(&mut content).unwrap();
+    let content = &content[..17];
+    let num: Vec<u8> = content
+        .split(":")
+        .map(|byte| u8::from_str_radix(byte, 16).unwrap())
         .collect();
-    let ret = MacAddr::new(numbers.as_slice())?;
-    Ok(ret)
+    let mac = MacAddr::new(num.as_slice())?;
+    Ok(mac)
 }

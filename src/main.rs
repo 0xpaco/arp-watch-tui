@@ -5,10 +5,10 @@ use log::debug;
 
 fn main() {
     std::env::set_var("RUST_LOG", "debug");
+    std::env::set_var("RUST_BACKTRACE", "1");
     env_logger::init();
     debug!("Logger initialised");
     let (app, app_tx) = App::new();
-    thread::spawn(move || sniff("wlan0", app_tx));
+    thread::spawn(move || sniff("enp0s3", app_tx));
     ui::start_ui(app).unwrap();
-    // sniff("wlan0", app_tx);
 }
