@@ -8,7 +8,7 @@ use crossterm::{
 use log::error;
 use tui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Alignment, Constraint, Direction, Layout},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     text::{Span, Text},
     widgets::{Block, BorderType, Borders, List, ListItem, Paragraph},
@@ -82,28 +82,22 @@ fn run_app<B: Backend>(term: &mut Terminal<B>, mut app: App) -> Result<(), Box<d
 }
 
 fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, mac: MacAddr) {
+    let header_chunk = Rect::new(0, 0, f.size().width, 3);
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints(
-            [
-                Constraint::Percentage(20),
-                Constraint::Percentage(40),
-                Constraint::Percentage(40),
-            ]
-            .as_ref(),
-        )
-        .split(f.size());
-    f.render_widget(header(app.arp_frame_counter, mac), chunks[0]);
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+        .split(Rect::new(0, 3, f.size().width, f.size().height - 3));
+    f.render_widget(header(app.arp_frame_counter, mac), header_chunk);
     f.render_stateful_widget(
         render_list(app.list.items.clone(), |item| item.to_string()),
-        chunks[1],
+        chunks[0],
         &mut app.list.state,
     );
     f.render_stateful_widget(
         render_list(app.changement_list.items.clone(), |item| {
             format!("{} -> {}", item.0, item.1)
         }),
-        chunks[2],
+        chunks[1],
         &mut app.changement_list.state,
     );
 }
