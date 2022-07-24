@@ -43,7 +43,7 @@ impl MacAddr {
 
 impl Into<Vec<u8>> for MacAddr {
     fn into(self) -> Vec<u8> {
-        self.field.clone()
+        self.field
     }
 }
 
@@ -80,7 +80,7 @@ impl IpAddr {
 
 impl Into<Vec<u8>> for IpAddr {
     fn into(self) -> Vec<u8> {
-        self.field.clone()
+        self.field
     }
 }
 
