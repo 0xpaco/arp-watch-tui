@@ -1,7 +1,7 @@
 use log::{error, info};
 use pnet_datalink::Channel::Ethernet;
 use pnet_datalink::NetworkInterface;
-use std::{error::Error, fs::File, io::Read, sync::mpsc::Sender};
+use std::{error::Error, fs::File, io::Read, sync::mpsc::Sender, thread};
 
 use crate::structs::{
     arp::{ARPOperation, ArpPacket, ArpPacketBuilder},
@@ -27,32 +27,37 @@ pub fn sniff(interface_name: &str, app_tx: Option<Sender<ArpPacket>>) {
         ),
     };
 
-    let mut local_mac = local_mac().unwrap();
-    let mut broadcast_mac = MacAddr::new(&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff]).unwrap();
-    let mut i: u8 = 0;
-    loop {
-        let packet = ArpPacketBuilder::default()
-            .sender(
-                // MacAddr::new(&[00, 00, 00, 00, 00, 00]).unwrap(),
-                local_mac.clone(),
-                IpAddr::new(&[192, 168, 1, 86]).unwrap(),
-            )
-            .target(
-                broadcast_mac.clone(),
-                IpAddr::new(&[192, 168, 1, i]).unwrap(),
-            )
-            .operation(ARPOperation::Request)
-            .build();
-        if let None = app_tx {
-            info!(
-                "Sending:\n{:?}",
+    let mut app_tx_th: Option<Sender<ArpPacket>> = None;
+    if let Some(ref app) = app_tx {
+        app_tx_th = Some(app.clone());
+    }
+    thread::spawn(move || {
+        let mut i = 0;
+        loop {
+            let mut local_mac = local_mac().unwrap();
+            let mut broadcast_mac = MacAddr::new(&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff]).unwrap();
+            let packet = ArpPacketBuilder::default()
+                .sender(local_mac.clone(), IpAddr::new(&[0, 0, 0, 0]).unwrap())
+                .target(
+                    broadcast_mac.clone(),
+                    IpAddr::new(&[192, 168, 1, i]).unwrap(),
+                )
+                .operation(ARPOperation::Request)
+                .build();
+            i = i.checked_add(1).unwrap_or(0);
+            if let None = app_tx_th {
+                info!(
+                    "Sending:\n{:?}",
+                    packet.raw(&mut local_mac, &mut broadcast_mac).as_slice(),
+                );
+            }
+            tx.send_to(
                 packet.raw(&mut local_mac, &mut broadcast_mac).as_slice(),
+                None,
             );
         }
-        tx.send_to(
-            packet.raw(&mut local_mac, &mut broadcast_mac).as_slice(),
-            None,
-        );
+    });
+    loop {
         match rx.next() {
             Ok(packet) => {
                 if packet.len() < 41 && packet[12..14] != [08, 06] {
@@ -69,7 +74,6 @@ pub fn sniff(interface_name: &str, app_tx: Option<Sender<ArpPacket>>) {
             }
             Err(e) => error!("Error occurred while catching packets {}", e),
         }
-        i = i.checked_add(1).unwrap_or(0);
     }
 }
 
