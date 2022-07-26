@@ -33,9 +33,9 @@ pub fn sniff(interface_name: &str, app_tx: Option<Sender<ArpPacket>>) {
     }
     thread::spawn(move || {
         let mut i = 0;
+        let mut local_mac = local_mac().unwrap();
+        let local_ip = local_ip(&interface).unwrap();
         loop {
-            let mut local_mac = local_mac().unwrap();
-            let local_ip = local_ip(&interface).unwrap();
             let target_ip = IpAddr::new(&[192, 168, 1, i]).unwrap();
             if local_ip == target_ip {
                 i = i.checked_add(1).unwrap_or(0);
@@ -44,7 +44,7 @@ pub fn sniff(interface_name: &str, app_tx: Option<Sender<ArpPacket>>) {
 
             let mut broadcast_mac = MacAddr::new(&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff]).unwrap();
             let packet = ArpPacketBuilder::default()
-                .sender(local_mac.clone(), local_ip)
+                .sender(local_mac.clone(), local_ip.clone())
                 .target(
                     broadcast_mac.clone(),
                     IpAddr::new(&[192, 168, 1, i]).unwrap(),
