@@ -8,18 +8,18 @@ pub struct StateList<T> {
 }
 
 impl StateList<Device> {
-    pub fn has_same_mac(&self, searched: &Device) -> bool {
+    pub fn get_by_mac(&self, searched: &MacAddr) -> Option<&Device> {
         for device in self.items.iter() {
-            if device.mac == searched.mac {
-                return true;
+            if device.mac == *searched {
+                return Some(device);
             }
         }
-        false
+        None
     }
 
-    pub fn get(&self, searched: &MacAddr) -> Option<&Device> {
+    pub fn get(&self, searched: &Device) -> Option<&Device> {
         for dev in self.items.iter() {
-            if dev.mac == *searched {
+            if *dev == *searched {
                 return Some(&dev);
             }
         }

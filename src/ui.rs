@@ -1,4 +1,4 @@
-use std::{error::Error, io, time::Duration};
+use std::{error::Error, io, os::unix::prelude::CommandExt, process::Command, time::Duration};
 
 use crossterm::{
     event::{self, poll, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
@@ -17,7 +17,10 @@ use tui::{
 
 use crate::{
     sniff::local_mac,
-    structs::net::{Device, MacAddr},
+    structs::{
+        arp::ARPOperation,
+        net::{Device, MacAddr},
+    },
     App,
 };
 
@@ -47,23 +50,34 @@ fn run_app<B: Backend>(term: &mut Terminal<B>, mut app: App) -> Result<(), Box<d
     let local_mac = local_mac()?;
     loop {
         if let Ok(packet) = app.rx.try_recv() {
-            let target = Device {
-                mac: packet.target_mac,
-                ip: packet.target_ip,
-            };
-
-            let broadcast_mac = MacAddr::new(&[00, 00, 00, 00, 00, 00]).unwrap();
-            if app.list.has_same_mac(&target) {
-                if let Some(already_existing) = app.list.get(&target.mac) {
-                    if already_existing.ip != target.ip {
-                        app.changement_list
-                            .items
-                            .push((already_existing.clone(), target));
+            match packet.operation {
+                ARPOperation::Request => {}
+                ARPOperation::Reply => {
+                    let dev = Device {
+                        mac: packet.sender_mac,
+                        ip: packet.sender_ip,
+                    };
+                    if let Some(already_existing) = app.list.get_by_mac(&dev.mac) {
+                        // Command::new("sh")
+                        //     .args([
+                        //         "-c",
+                        //         "notify-send",
+                        //         "ARP Watch",
+                        //         format!(
+                        //             "[{}] @ {} -> [{}] {}",
+                        //             already_existing.mac, already_existing.ip, dev.mac, dev.ip
+                        //         )
+                        //         .as_str(),
+                        //     ])
+                        //     .exec();
+                        if already_existing.ip != dev.ip {
+                            app.changement_list
+                                .items
+                                .push((already_existing.clone(), dev));
+                        }
+                    } else {
+                        app.list.items.push(dev);
                     }
-                }
-            } else {
-                if target.mac != broadcast_mac {
-                    app.list.items.push(target);
                 }
             }
             app.arp_frame_counter += 1;

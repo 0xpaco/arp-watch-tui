@@ -43,6 +43,66 @@ pub enum ARPOperation {
 }
 
 #[derive(Debug)]
+pub struct ArpPacketBuilder {
+    pub hardware_type: HardwareType,
+    pub proto_type: ProtocolType,
+    pub hardware_len: usize,
+    pub proto_len: usize,
+    pub operation: Option<ARPOperation>,
+    pub sender_mac: Option<MacAddr>,
+    pub sender_ip: Option<IpAddr>,
+    pub target_mac: Option<MacAddr>,
+    pub target_ip: Option<IpAddr>,
+}
+
+impl ArpPacketBuilder {
+    pub fn default() -> ArpPacketBuilder {
+        ArpPacketBuilder {
+            hardware_type: HardwareType::Ether,
+            proto_type: ProtocolType::V4,
+            hardware_len: 6,
+            proto_len: 4,
+            operation: None,
+            sender_mac: None,
+            sender_ip: None,
+            target_mac: None,
+            target_ip: None,
+        }
+    }
+
+    pub fn sender(mut self, mac: MacAddr, ip: IpAddr) -> ArpPacketBuilder {
+        self.sender_mac = Some(mac);
+        self.sender_ip = Some(ip);
+        self
+    }
+
+    pub fn target(mut self, mac: MacAddr, ip: IpAddr) -> ArpPacketBuilder {
+        self.target_mac = Some(mac);
+        self.target_ip = Some(ip);
+        self
+    }
+
+    pub fn operation(mut self, operation: ARPOperation) -> ArpPacketBuilder {
+        self.operation = Some(operation);
+        self
+    }
+
+    pub fn build(self) -> ArpPacket {
+        ArpPacket {
+            hardware_type: self.hardware_type,
+            proto_type: self.proto_type,
+            hardware_len: self.hardware_len,
+            proto_len: self.proto_len,
+            operation: self.operation.unwrap(),
+            sender_mac: self.sender_mac.unwrap(),
+            sender_ip: self.sender_ip.unwrap(),
+            target_mac: self.target_mac.unwrap(),
+            target_ip: self.target_ip.unwrap(),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct ArpPacket {
     pub hardware_type: HardwareType,
     pub proto_type: ProtocolType,
@@ -103,17 +163,23 @@ impl ArpPacket {
         })
     }
 
-    pub fn raw(&self) -> Vec<u8> {
-        let mut vec: Vec<u8> = vec![00, 00, 00, 00, 00, 00, 08, 00, 27, 0x7au8, 92, 65, 08, 06, 00, 01, 08, 00, 06, 04];
+    pub fn raw(&self, src: &mut MacAddr, dst: &mut MacAddr) -> Vec<u8> {
+        let mut vec: Vec<u8> = vec![];
+        vec.append(&mut dst.field.clone());
+        vec.append(&mut src.field.clone());
+        vec.append(vec![08, 06].as_mut());
+        vec.append(vec![00, 01].as_mut());
+        vec.append(vec![08, 00].as_mut());
+        vec.append(vec![06, 04].as_mut());
         let op: &[u8; 2] = match self.operation {
             ARPOperation::Request => &[00, 01],
-            ARPOperation::Reply => &[00, 02]
+            ARPOperation::Reply => &[00, 02],
         };
         vec.append(&mut op.to_vec());
-        vec.append(&mut self.sender_mac.field.to_vec());
-        vec.append(&mut self.sender_ip.field.to_vec());
-        vec.append(&mut self.target_mac.field.to_vec());
-        vec.append(&mut self.target_ip.field.to_vec());
+        vec.append(&mut self.sender_mac.field.clone());
+        vec.append(&mut self.sender_ip.field.clone());
+        vec.append(&mut self.target_mac.field.clone());
+        vec.append(&mut self.target_ip.field.clone());
         vec
     }
 }
