@@ -1,7 +1,7 @@
 use log::{error, info};
 use pnet_datalink::Channel::Ethernet;
 use pnet_datalink::NetworkInterface;
-use std::{error::Error, fs::File, io::Read, sync::mpsc::Sender, thread};
+use std::{error::Error, fs::File, io::Read, sync::mpsc::Sender, thread, time::Duration};
 
 use crate::structs::{
     arp::{ARPOperation, ArpPacket, ArpPacketBuilder},
@@ -45,6 +45,7 @@ pub fn sniff(interface_name: &str, app_tx: Option<Sender<ArpPacket>>) {
                 .operation(ARPOperation::Request)
                 .build();
             i = i.checked_add(1).unwrap_or(0);
+
             if let None = app_tx_th {
                 info!(
                     "Sending:\n{:?}",
@@ -55,6 +56,8 @@ pub fn sniff(interface_name: &str, app_tx: Option<Sender<ArpPacket>>) {
                 packet.raw(&mut local_mac, &mut broadcast_mac).as_slice(),
                 None,
             );
+
+            thread::sleep(Duration::from_millis(200));
         }
     });
     loop {
