@@ -35,9 +35,16 @@ pub fn sniff(interface_name: &str, app_tx: Option<Sender<ArpPacket>>) {
         let mut i = 0;
         loop {
             let mut local_mac = local_mac().unwrap();
+            let local_ip = local_ip(&interface).unwrap();
+            let target_ip = IpAddr::new(&[192, 168, 1, i]).unwrap();
+            if local_ip == target_ip {
+                i = i.checked_add(1).unwrap_or(0);
+                continue;
+            }
+
             let mut broadcast_mac = MacAddr::new(&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff]).unwrap();
             let packet = ArpPacketBuilder::default()
-                .sender(local_mac.clone(), IpAddr::new(&[0, 0, 0, 0]).unwrap())
+                .sender(local_mac.clone(), local_ip)
                 .target(
                     broadcast_mac.clone(),
                     IpAddr::new(&[192, 168, 1, i]).unwrap(),
@@ -57,7 +64,7 @@ pub fn sniff(interface_name: &str, app_tx: Option<Sender<ArpPacket>>) {
                 None,
             );
 
-            thread::sleep(Duration::from_millis(200));
+            thread::sleep(Duration::from_millis(100));
         }
     });
     loop {
@@ -91,4 +98,13 @@ pub fn local_mac() -> Result<MacAddr, Box<dyn Error>> {
         .collect();
     let mac = MacAddr::new(num.as_slice())?;
     Ok(mac)
+}
+
+pub fn local_ip(iface: &NetworkInterface) -> Result<IpAddr, Box<dyn Error>> {
+    match iface.ips[0].ip() {
+        std::net::IpAddr::V4(ip) => {
+            return Ok(IpAddr::new(ip.octets().as_slice()).unwrap());
+        }
+        std::net::IpAddr::V6(_) => todo!(),
+    }
 }
