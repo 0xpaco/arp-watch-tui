@@ -1,7 +1,7 @@
 use std::{env::args, thread};
 
 use arp_watch::{sniff::sniff, ui, App};
-use log::{debug, info};
+use log::{debug, error, info};
 
 fn main() {
     std::env::set_var("RUST_LOG", "debug");
@@ -9,13 +9,19 @@ fn main() {
     env_logger::init();
     debug!("Logger initialised");
 
-    let (app, app_tx) = App::new();
-    let args = args();
-    info!("{}", args.len());
+    let mut args = args();
     if args.len() < 2 {
-        thread::spawn(move || sniff("enp0s3", Some(app_tx)));
+        error!("Usage: arpwatch <iface> [Ip mask]");
+        return;
+    }
+
+    let ifacename = args.next().unwrap().clone();
+    let (app, app_tx) = App::new();
+    info!("{}", args.len());
+    if args.len() < 3 {
+        thread::spawn(move || sniff(ifacename.as_str(), Some(app_tx)));
         ui::start_ui(app).unwrap();
     } else {
-        sniff("enp0s3", None);
+        sniff(ifacename.as_str(), None);
     }
 }

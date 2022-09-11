@@ -1,4 +1,4 @@
-use std::{error::Error, io, os::unix::prelude::CommandExt, process::Command, time::Duration};
+use std::{error::Error, io, time::Duration};
 
 use crossterm::{
     event::{self, poll, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},

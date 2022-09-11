@@ -88,7 +88,8 @@ pub fn sniff(interface_name: &str, app_tx: Option<Sender<ArpPacket>>) {
 }
 
 pub fn local_mac() -> Result<MacAddr, Box<dyn Error>> {
-    let mut f = File::open("/sys/class/net/enp0s3/address").unwrap();
+    // TODO remove hardcoded iface name
+    let mut f = File::open("/sys/class/net/wlan0/address").unwrap();
     let mut content = String::new();
     f.read_to_string(&mut content).unwrap();
     let content = &content[..17];
